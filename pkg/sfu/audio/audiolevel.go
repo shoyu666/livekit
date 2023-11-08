@@ -16,6 +16,7 @@ package audio
 
 import (
 	"math"
+	"time"
 
 	"go.uber.org/atomic"
 )
@@ -40,7 +41,8 @@ type AudioLevel struct {
 	smoothFactor      float64
 	activeThreshold   float64
 
-	smoothedLevel atomic.Float64
+	smoothedLevel           atomic.Float64
+	smoothedLevelLastUpdate atomic.Int64
 
 	loudestObservedLevel uint8
 	activeDuration       uint32 // ms
@@ -101,6 +103,11 @@ func (l *AudioLevel) Observe(level uint8, durationMs uint32) {
 
 // returns current soothed audio level
 func (l *AudioLevel) GetLevel() (float64, bool) {
+	passTime := time.Now().Unix() - l.smoothedLevelLastUpdate.Load()
+	if passTime > 3 {
+		//smoothedLevel is expire
+		return 0, false
+	}
 	smoothedLevel := l.smoothedLevel.Load()
 	active := smoothedLevel >= l.activeThreshold
 	return smoothedLevel, active
